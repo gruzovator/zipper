@@ -5,6 +5,12 @@
 
 Zipper is a simple tool to pack directories into go file.
 
+## Installation
+
+```
+go get -u github.com/gruzovator/zipper
+```
+
 ## Usage Example
 
 Command:
