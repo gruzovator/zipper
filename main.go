@@ -90,7 +90,7 @@ import (
 )
 
 func New{{.var}}FS() vfs.FileSystem {
-	zipReader, err := zip.NewReader(bytes.NewReader(decoded{{.var}}), int64(len({{.var}})))
+	zipReader, err := zip.NewReader(bytes.NewReader(decoded{{.var}}), int64(len(decoded{{.var}})))
 	if err != nil {
 		panic(err)
 	}

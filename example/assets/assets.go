@@ -12,7 +12,7 @@ import (
 )
 
 func NewZippedFilesFS() vfs.FileSystem {
-	zipReader, err := zip.NewReader(bytes.NewReader(decodedZippedFiles), int64(len(ZippedFiles)))
+	zipReader, err := zip.NewReader(bytes.NewReader(decodedZippedFiles), int64(len(decodedZippedFiles)))
 	if err != nil {
 		panic(err)
 	}
