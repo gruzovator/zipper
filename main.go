@@ -84,33 +84,28 @@ import (
 	"encoding/base64"
 	"net/http"
 
-	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/httpfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
 )
 
-func New{{.var}}FS() vfs.FileSystem {
-	zipReader, err := zip.NewReader(bytes.NewReader(decoded{{.var}}), int64(len(decoded{{.var}})))
+var {{.var}} []byte
+
+func New{{.var}}FS() http.FileSystem {
+	zipReader, err := zip.NewReader(bytes.NewReader({{.var}}), int64(len({{.var}})))
 	if err != nil {
 		panic(err)
 	}
 
-	return zipfs.New(&zip.ReadCloser{Reader: *zipReader}, "/")
+	return httpfs.New(zipfs.New(&zip.ReadCloser{Reader: *zipReader}, "/"))
 }
-
-func New{{.var}}HttpFS() http.FileSystem {
-	return httpfs.New(New{{.var}}FS())
-}
-
-var decoded{{.var}} []byte
 
 func init() {
 	var err error
-	decoded{{.var}}, err = base64.StdEncoding.DecodeString({{.var}})
+	{{.var}}, err = base64.StdEncoding.DecodeString(encodedData)
 	if err != nil {
 		panic(err)
 	}
 }
 
-const {{.var}} = ` + "`{{.data}}`" + `
+const encodedData =` + "`{{.data}}`" + `
 `

@@ -20,6 +20,5 @@ zipper -src assets-src -dest assets/assests.go -pkg assets -exclude *.bin
 
 Output go file provides:
 
-* const ZippedFiles = `<base64 encoded zip>`
-* func NewZippedFilesFS() vfs.FileSystem
-* func NewZippedFilesHttpFS() http.FileSystem
+* var ZippedFiles []byte
+* func NewZippedFilesFS() http.FileSystem

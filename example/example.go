@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	http.Handle("/", http.FileServer(assets.NewZippedFilesHttpFS()))
+	http.Handle("/", http.FileServer(assets.NewZippedFilesFS()))
 
 	if err := http.ListenAndServe(":8080", nil); err != http.ErrServerClosed {
 		panic(err)
