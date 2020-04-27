@@ -86,6 +86,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"net/http"
+
 	"golang.org/x/tools/godoc/vfs/httpfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
 )
