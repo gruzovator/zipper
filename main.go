@@ -107,5 +107,4 @@ func init() {
 	}
 }
 
-const encodedData =` + "`{{.data}}`" + `
-`
+const encodedData = ` + "`{{.data}}`"
