@@ -6,12 +6,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
+// const to use when modification time should be ignored
+var defaultModTime = time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
+
 type zipper struct {
-	srcPath string
-	filter  Filter
-	writer  *zip.Writer
+	srcPath        string
+	filter         Filter
+	ignoreModTimes bool
+	writer         *zip.Writer
 }
 
 type Option func(*zipper)
@@ -34,6 +39,12 @@ func WithExcludePatterns(patterns []string) Option {
 
 func WithExcludePatternsStr(patterns string) Option {
 	return WithExcludePatterns(splitPatternsString(patterns))
+}
+
+func WithIgonreModTimes(flagValue bool) Option {
+	return func(z *zipper) {
+		z.ignoreModTimes = flagValue
+	}
 }
 
 func Zip(w io.Writer, srcPath string, opts ...Option) error {
@@ -77,6 +88,9 @@ func (z *zipper) zip(filePath string, fileInfo os.FileInfo) error {
 
 	zipFileHeader.Name = filepath.ToSlash(relPath)
 	zipFileHeader.Method = zip.Deflate
+	if z.ignoreModTimes {
+		zipFileHeader.Modified = defaultModTime
+	}
 
 	w, err := z.writer.CreateHeader(zipFileHeader)
 	if err != nil {

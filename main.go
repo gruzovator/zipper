@@ -18,6 +18,7 @@ func main() {
 		variable        string
 		includePatterns string
 		excludePatterns string
+		ignoreModTimes  bool
 	)
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
@@ -32,6 +33,7 @@ func main() {
 		"list of filename patterns to include, e.g.: *.css,*.html (optional)")
 	flag.StringVar(&excludePatterns, "exclude", "",
 		"list of filename patterns to exclude, e.g.: *.txt,*.bin (optional)")
+	flag.BoolVar(&ignoreModTimes, "ignore-modtimes", false, "ignore modification times (optional)")
 	flag.Parse()
 
 	if src == "" || dest == "" || pkg == "" {
@@ -43,6 +45,7 @@ func main() {
 	err := Zip(&zippedFiles, src,
 		WithIncludePatternsStr(includePatterns),
 		WithExcludePatternsStr(excludePatterns),
+		WithIgonreModTimes(ignoreModTimes),
 	)
 	if err != nil {
 		panic(err)
@@ -83,7 +86,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"net/http"
-
 	"golang.org/x/tools/godoc/vfs/httpfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
 )
