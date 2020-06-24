@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// const to use when modification time should be ignored
+// timestamp to use when modification time should be ignored
 var defaultModTime = time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 type zipper struct {
