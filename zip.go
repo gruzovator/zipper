@@ -16,6 +16,7 @@ type zipper struct {
 	srcPath        string
 	filter         Filter
 	ignoreModTimes bool
+	useFileMode    os.FileMode
 	writer         *zip.Writer
 }
 
@@ -44,6 +45,12 @@ func WithExcludePatternsStr(patterns string) Option {
 func WithIgonreModTimes(flagValue bool) Option {
 	return func(z *zipper) {
 		z.ignoreModTimes = flagValue
+	}
+}
+
+func WithFileMode(m os.FileMode) Option {
+	return func(z *zipper) {
+		z.useFileMode = m
 	}
 }
 
@@ -90,6 +97,9 @@ func (z *zipper) zip(filePath string, fileInfo os.FileInfo) error {
 	zipFileHeader.Method = zip.Deflate
 	if z.ignoreModTimes {
 		zipFileHeader.Modified = defaultModTime
+	}
+	if z.useFileMode != 0 {
+		zipFileHeader.SetMode(z.useFileMode)
 	}
 
 	w, err := z.writer.CreateHeader(zipFileHeader)
