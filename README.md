@@ -15,7 +15,7 @@ go get -u github.com/gruzovator/zipper
 
 Command:
 ```
-zipper -src assets-src -dest assets/assests.go -pkg assets -exclude *.bin
+zipper -src assets-src -dest assets/assets.go -pkg assets -exclude *.bin
 ```
 
 Output go file provides:
