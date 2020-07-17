@@ -6,6 +6,8 @@ import (
 	"github.com/gruzovator/zipper/example/assets"
 )
 
+//go:generate zipper -src assets-src -dest assets/assets.go -pkg assets -exclude *.bin
+
 func main() {
 	http.Handle("/", http.FileServer(assets.NewZippedFilesFS()))
 
