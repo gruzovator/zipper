@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"text/template"
 	"time"
@@ -16,6 +17,7 @@ func main() {
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
 		fmt.Fprint(out, "\nZipper is a tool to pack directories into go file.\n\n")
+		fmt.Fprintf(out, "Version: %s\n\n", version())
 		flag.PrintDefaults()
 	}
 	srcDir := flag.String("src", "", "source dir or file path (required)")
@@ -26,6 +28,7 @@ func main() {
 	ignoreModTimes := flag.Bool("ignore-modtimes", false, "use default constant for zipped files mod time")
 	ignoreFileModes := flag.Bool("ignore-filemodes", false, "use default file mod fro zipped files")
 	verboseMode := flag.Bool("verbose", false, "print zipped files paths")
+	printVersion := flag.Bool("version", false, "print version")
 	var (
 		includePatterns strArrayFlags
 		excludePatterns strArrayFlags
@@ -35,10 +38,15 @@ func main() {
 	flag.Var(&excludePatterns, "exclude",
 		"glob pattern to exclude files (e.g. use bin/** to exclude bin dir), glob format: github.com/gobwas/glob")
 	flag.Parse()
+	if *printVersion {
+		fmt.Fprintln(os.Stderr, version())
+		os.Exit(2)
+	}
 	if *srcDir == "" || *destFile == "" || *pkgName == "" {
 		flag.Usage()
 		os.Exit(2)
 	}
+
 	zipOptions := []ZipOption{
 		WithExcludePatterns(excludePatterns...),
 		WithIncludePatterns(includePatterns...),
@@ -99,4 +107,12 @@ func (i *strArrayFlags) String() string {
 func (i *strArrayFlags) Set(value string) error {
 	*i = append(*i, value)
 	return nil
+}
+
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info.Main.Version == "" {
+		return "unknown"
+	}
+	return info.Main.Version
 }
