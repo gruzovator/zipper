@@ -8,8 +8,13 @@ Zipper is a tool to pack directories into go file.
 ## Installation
 
 ```
-go get -u github.com/gruzovator/zipper
+GO111MODULE=on go get github.com/gruzovator/zipper@latest
 ```
+or
+```
+go get github.com/gruzovator/zipper
+```
+ 
 
 ## Usage
 
