@@ -5,77 +5,96 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
-// timestamp to use when modification time should be ignored
-var defaultModTime = time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
-
-type zipper struct {
-	srcPath        string
-	filter         Filter
-	ignoreModTimes bool
-	useFileMode    os.FileMode
-	writer         *zip.Writer
+type zipOptions struct {
+	excludePatterns  []string
+	includePatterns  []string
+	useModTime       *time.Time
+	useFileMode      *os.FileMode
+	progressCallback func(file string)
 }
 
-type Option func(*zipper)
+type ZipOption func(*zipOptions)
 
-func WithIncludePatterns(patterns []string) Option {
-	return func(z *zipper) {
-		z.filter.IncludePatterns = patterns
+func WithExcludePatterns(pp ...string) ZipOption {
+	return func(o *zipOptions) {
+		o.excludePatterns = append(o.excludePatterns, pp...)
 	}
 }
 
-func WithIncludePatternsStr(patterns string) Option {
-	return WithIncludePatterns(splitPatternsString(patterns))
-}
-
-func WithExcludePatterns(patterns []string) Option {
-	return func(z *zipper) {
-		z.filter.ExcludePatterns = patterns
+func WithIncludePatterns(pp ...string) ZipOption {
+	return func(o *zipOptions) {
+		o.includePatterns = append(o.includePatterns, pp...)
 	}
 }
 
-func WithExcludePatternsStr(patterns string) Option {
-	return WithExcludePatterns(splitPatternsString(patterns))
-}
-
-func WithIgonreModTimes(flagValue bool) Option {
-	return func(z *zipper) {
-		z.ignoreModTimes = flagValue
+func WithModTime(t time.Time) ZipOption {
+	return func(o *zipOptions) {
+		o.useModTime = &t
 	}
 }
 
-func WithFileMode(m os.FileMode) Option {
-	return func(z *zipper) {
-		z.useFileMode = m
+func WithFileMode(m os.FileMode) ZipOption {
+	return func(o *zipOptions) {
+		o.useFileMode = &m
 	}
 }
 
-func Zip(w io.Writer, srcPath string, opts ...Option) error {
+func WithProgressCallback(fn func(filePath string)) ZipOption {
+	return func(o *zipOptions) {
+		o.progressCallback = fn
+	}
+}
+
+func Zip(w io.Writer, srcPath string, opts ...ZipOption) error {
+	var options zipOptions
+	for _, o := range opts {
+		o(&options)
+	}
+
+	filter, err := NewGlobFilter(options.includePatterns, options.excludePatterns)
+	if err != nil {
+		return err
+	}
+
 	zipOut := zip.NewWriter(w)
 	defer zipOut.Close()
 
 	z := &zipper{
-		srcPath: srcPath,
-		writer:  zipOut,
-	}
-	for _, o := range opts {
-		o(z)
+		writer:      zipOut,
+		srcPath:     srcPath,
+		filter:      filter,
+		useModTime:  options.useModTime,
+		useFileMode: options.useFileMode,
 	}
 
-	err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	progressCallback := func(string) {}
+	if options.progressCallback != nil {
+		progressCallback = options.progressCallback
+	}
+
+	err = filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if path == "." || info.IsDir() || !z.filter.Match(path) {
+		relPath, _ := filepath.Rel(srcPath, path)
+		if path == "." || info.IsDir() || !z.filter.Match(relPath) {
 			return nil
 		}
+		progressCallback(relPath)
 		return z.zip(path, info)
 	})
 	return err
+}
+
+type zipper struct {
+	writer      *zip.Writer
+	srcPath     string
+	filter      GlobFilter
+	useModTime  *time.Time
+	useFileMode *os.FileMode
 }
 
 func (z *zipper) zip(filePath string, fileInfo os.FileInfo) error {
@@ -95,11 +114,11 @@ func (z *zipper) zip(filePath string, fileInfo os.FileInfo) error {
 
 	zipFileHeader.Name = filepath.ToSlash(relPath)
 	zipFileHeader.Method = zip.Deflate
-	if z.ignoreModTimes {
-		zipFileHeader.Modified = defaultModTime
+	if z.useModTime != nil {
+		zipFileHeader.Modified = *z.useModTime
 	}
-	if z.useFileMode != 0 {
-		zipFileHeader.SetMode(z.useFileMode)
+	if z.useFileMode != nil {
+		zipFileHeader.SetMode(*z.useFileMode)
 	}
 
 	w, err := z.writer.CreateHeader(zipFileHeader)
@@ -116,16 +135,4 @@ func (z *zipper) zip(filePath string, fileInfo os.FileInfo) error {
 	_, err = io.Copy(w, f)
 
 	return err
-}
-
-func splitPatternsString(s string) []string {
-	var patterns []string
-	for _, p := range strings.Split(s, ",") {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		patterns = append(patterns, p)
-	}
-	return patterns
 }

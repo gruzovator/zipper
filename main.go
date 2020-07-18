@@ -7,69 +7,73 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
+	"time"
 )
 
 func main() {
-	var (
-		src             string
-		dest            string
-		pkg             string
-		variable        string
-		includePatterns string
-		excludePatterns string
-		ignoreModTimes  bool
-		ignoreFielModes bool
-	)
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
 		fmt.Fprint(out, "\nZipper is a tool to pack directories into go file.\n\n")
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&src, "src", "", "source dir or file path")
-	flag.StringVar(&dest, "dest", "", "dest go file path or - to print packed data string to stdout")
-	flag.StringVar(&pkg, "pkg", "", "go file package name")
-	flag.StringVar(&variable, "var", "ZippedFiles", "name of const variable to store data (optional)")
-	flag.StringVar(&includePatterns, "include", "",
-		"list of filename patterns to include, e.g.: *.css,*.html (optional)")
-	flag.StringVar(&excludePatterns, "exclude", "",
-		"list of filename patterns to exclude, e.g.: *.txt,*.bin (optional)")
-	flag.BoolVar(&ignoreModTimes, "ignore-modtimes", false, "ignore modification times (optional)")
-	flag.BoolVar(&ignoreFielModes, "ignore-filemodes", false, "ignore file modes, use 0644 (optional)")
+	srcDir := flag.String("src", "", "source dir or file path (required)")
+	destFile := flag.String("dest", "",
+		"output go file path (required), use - to print zipped data string to stdout")
+	pkgName := flag.String("pkg", "", "package name for output go file (required)")
+	zipdataVarName := flag.String("var", "ZippedFiles", "name of variable to store data")
+	ignoreModTimes := flag.Bool("ignore-modtimes", false, "use default constant for zipped files mod time")
+	ignoreFileModes := flag.Bool("ignore-filemodes", false, "use default file mod fro zipped files")
+	verboseMode := flag.Bool("verbose", false, "print zipped files paths")
+	var (
+		includePatterns strArrayFlags
+		excludePatterns strArrayFlags
+	)
+	flag.Var(&includePatterns, "include",
+		"glob pattern to include files (e.g. use **.txt to include only txt files), glob format: github.com/gobwas/glob")
+	flag.Var(&excludePatterns, "exclude",
+		"glob pattern to exclude files (e.g. use bin/** to exclude bin dir), glob format: github.com/gobwas/glob")
 	flag.Parse()
-
-	if src == "" || dest == "" || pkg == "" {
+	if *srcDir == "" || *destFile == "" || *pkgName == "" {
 		flag.Usage()
 		os.Exit(2)
 	}
+	zipOptions := []ZipOption{
+		WithExcludePatterns(excludePatterns...),
+		WithIncludePatterns(includePatterns...),
+	}
+	if *ignoreModTimes {
+		modTime := time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
+		zipOptions = append(zipOptions, WithModTime(modTime))
+	}
+	if *ignoreFileModes {
+		zipOptions = append(zipOptions, WithFileMode(0644))
+	}
+	if *verboseMode {
+		printFile := func(f string) {
+			fmt.Println(f)
+		}
+		zipOptions = append(zipOptions, WithProgressCallback(printFile))
+	}
 
 	var zippedFiles bytes.Buffer
-	var fileMode os.FileMode
-	if ignoreFielModes {
-		fileMode = 0644
-	}
-	err := Zip(&zippedFiles, src,
-		WithIncludePatternsStr(includePatterns),
-		WithExcludePatternsStr(excludePatterns),
-		WithIgonreModTimes(ignoreModTimes),
-		WithFileMode(fileMode),
-	)
-	if err != nil {
+	if err := Zip(&zippedFiles, *srcDir, zipOptions...); err != nil {
 		panic(err)
 	}
 
 	encodedData := base64.StdEncoding.EncodeToString(zippedFiles.Bytes())
 
-	if dest == "-" {
+	if *destFile == "-" {
 		fmt.Print(encodedData)
 		return
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dest), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Dir(*destFile), os.ModePerm); err != nil {
 		panic(err)
 	}
 
-	outFile, err := os.Create(dest)
+	outFile, err := os.Create(*destFile)
 	if err != nil {
 		panic(err)
 	}
@@ -77,8 +81,8 @@ func main() {
 
 	tmpl := template.Must(template.New("").Parse(outFileTemplate))
 	err = tmpl.Execute(outFile, map[string]interface{}{
-		"pkg":  pkg,
-		"var":  variable,
+		"pkg":  *pkgName,
+		"var":  *zipdataVarName,
 		"data": encodedData,
 	})
 	if err != nil {
@@ -86,36 +90,13 @@ func main() {
 	}
 }
 
-const outFileTemplate = `package {{.pkg}}
+type strArrayFlags []string
 
-import (
-	"archive/zip"
-	"bytes"
-	"encoding/base64"
-	"net/http"
-
-	"golang.org/x/tools/godoc/vfs/httpfs"
-	"golang.org/x/tools/godoc/vfs/zipfs"
-)
-
-var {{.var}} []byte
-
-func New{{.var}}FS() http.FileSystem {
-	zipReader, err := zip.NewReader(bytes.NewReader({{.var}}), int64(len({{.var}})))
-	if err != nil {
-		panic(err)
-	}
-
-	return httpfs.New(zipfs.New(&zip.ReadCloser{Reader: *zipReader}, "/"))
+func (i *strArrayFlags) String() string {
+	return strings.Join(*i, ",")
 }
 
-func init() {
-	var err error
-	{{.var}}, err = base64.StdEncoding.DecodeString(encodedData)
-	if err != nil {
-		panic(err)
-	}
+func (i *strArrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
 }
-
-const encodedData = ` + "`{{.data}}`" + `
-`
