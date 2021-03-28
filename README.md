@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gruzovator/zipper)](https://goreportcard.com/report/github.com/gruzovator/zipper)
 
+**Deprecated, use //go:embed feature**
+
 Zipper is a tool to pack directories into go file.
 
 ## Installation
